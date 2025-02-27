@@ -9,7 +9,7 @@ RUN go mod download
 
 # Copy source code
 COPY producer.go .
-
+ 
 # Build the producer binary
 RUN go build -o producer .
 

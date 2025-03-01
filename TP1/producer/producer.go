@@ -4,7 +4,7 @@ import (
 	"log"
 	"os"
 
-	"github.com/streadway/amqp"
+	"github.com/rabbitmq/amqp091-go"
 )
 
 func failOnError(err error, msg string) {
@@ -21,7 +21,7 @@ func main() {
 	}
 
 	// Connect to RabbitMQ
-	conn, err := amqp.Dial(amqpURL)
+	conn, err := amqp091.Dial(amqpURL)
 	failOnError(err, "Failed to connect to RabbitMQ")
 	defer conn.Close()
 
@@ -48,7 +48,7 @@ func main() {
 		q.Name, // routing key (queue name)
 		false,  // mandatory
 		false,  // immediate
-		amqp.Publishing{
+		amqp091.Publishing{
 			ContentType: "text/plain",
 			Body:        []byte(body),
 		})

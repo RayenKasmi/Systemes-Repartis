@@ -1,0 +1,49 @@
+version: '3'
+services:
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    ports:
+      - "5672:5672"    # AMQP port for communication
+      - "15672:15672"  # Management UI port
+    environment:
+      RABBITMQ_DEFAULT_USER: admin
+      RABBITMQ_DEFAULT_PASS: admin
+    healthcheck:
+      test: ["CMD", "rabbitmqctl", "status"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  producer:
+    build: ./producer
+    depends_on:
+      rabbitmq:   
+        condition: service_healthy
+    environment:
+      - RABBITMQ_URL=amqp://admin:admin@rabbitmq:5672
+      - EXCHANGE_NAME=logger
+      - ROUTING_KEYS=info,warning,error
+
+
+  consumer1:
+    build: ./consumer
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    environment:
+      - RABBITMQ_URL=amqp://admin:admin@rabbitmq:5672
+      - BINDING_KEY=error
+      - QUEUE_NAME=error_queue
+      - EXCHANGE_NAME=logger
+
+
+  consumer2:
+    build: ./consumer
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    environment:
+      - RABBITMQ_URL=amqp://admin:admin@rabbitmq:5672
+      - BINDING_KEY=info,warning,error
+      - QUEUE_NAME=all_logs
+      - EXCHANGE_NAME=logger

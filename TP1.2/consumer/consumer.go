@@ -3,7 +3,8 @@ package main
 import (
 	"log"
 	"os"
-	"github.com/rabbitmq/amqp091-go" 
+	"github.com/rabbitmq/amqp091-go"
+	"strings"
 )
 
 func failOnError(err error, msg string) {
@@ -29,9 +30,21 @@ func main() {
 	failOnError(err, "Failed to open a channel")
 	defer ch.Close() // Close the channel when the program ends
 
+	// Declare exchange
+	err = ch.ExchangeDeclare(
+		os.Getenv("EXCHANGE_NAME"), // name,
+		"direct",
+		true,
+		false,
+		false,
+		false,
+		nil,
+	)
+	failOnError(err, "Failed to declare an exchange")
+
 	// Declare the same queue as the producer
 	q, err := ch.QueueDeclare(
-		"test_queue", // name
+		os.Getenv("QUEUE_NAME"), // name
 		false,
 		false,
 		false,
@@ -39,6 +52,14 @@ func main() {
 		nil,
 	)
 	failOnError(err, "Failed to declare a queue")
+
+	bindingKeys := strings.Split(os.Getenv("BINDING_KEY"), ",")
+
+	// Bind the queue to the exchange
+	for _, bindingKey := range bindingKeys {
+		err = ch.QueueBind(q.Name, bindingKey, os.Getenv("EXCHANGE_NAME"), false, nil)
+		failOnError(err, "Failed to bind a queue")
+	}
 
 	// Consume messages from the queue
 	msgs, err := ch.Consume(

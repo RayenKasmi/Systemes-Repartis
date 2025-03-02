@@ -1,0 +1,122 @@
+# TP2/docker-compose.yml
+version: '3'
+
+services:
+  rabbitmq:
+    image: rabbitmq:3-management
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    healthcheck:
+      test: ["CMD", "rabbitmqctl", "status"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  mysql-bo1:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: bo1
+      MYSQL_USER: user
+      MYSQL_PASSWORD: password
+    ports:
+      - "3306:3306"
+    volumes:
+      - ./init-scripts/init-bo1.sql:/docker-entrypoint-initdb.d/init.sql
+
+  mysql-bo2:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: bo2
+      MYSQL_USER: user
+      MYSQL_PASSWORD: password
+    ports:
+      - "3307:3306"
+    volumes:
+      - ./init-scripts/init-bo2.sql:/docker-entrypoint-initdb.d/init.sql
+
+  mysql-ho:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: ho
+      MYSQL_USER: user
+      MYSQL_PASSWORD: password
+    ports:
+      - "3308:3306"
+    volumes:
+      - ./init-scripts/init-ho.sql:/docker-entrypoint-initdb.d/init.sql
+
+  api-service:
+    build:
+      context: ./api
+    ports:
+      - "8080:8080"
+    depends_on:
+      - rabbitmq
+      - mysql-bo1
+      - mysql-bo2
+      - mysql-ho
+    environment:
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USER: guest
+      RABBITMQ_PASS: guest
+      BO1_DB_HOST: mysql-bo1
+      BO2_DB_HOST: mysql-bo2
+      HO_DB_HOST: mysql-ho
+      DB_USER: user
+      DB_PASS: password
+
+  bo1-consumer:
+    build:
+      context: ./consumers/bo1
+    depends_on:
+      - rabbitmq
+      - mysql-bo1
+    environment:
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USER: guest
+      RABBITMQ_PASS: guest
+      DB_HOST: mysql-bo1
+      DB_USER: user
+      DB_PASS: password
+      DB_NAME: bo1
+
+  bo2-consumer:
+    build:
+      context: ./consumers/bo2
+    depends_on:
+      - rabbitmq
+      - mysql-bo2
+    environment:
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USER: guest
+      RABBITMQ_PASS: guest
+      DB_HOST: mysql-bo2
+      DB_USER: user
+      DB_PASS: password
+      DB_NAME: bo2
+
+  ho-consumer:
+    build:
+      context: ./consumers/ho
+    depends_on:
+      - rabbitmq
+      - mysql-ho
+    environment:
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USER: guest
+      RABBITMQ_PASS: guest
+      DB_HOST: mysql-ho
+      DB_USER: user
+      DB_PASS: password
+      DB_NAME: ho

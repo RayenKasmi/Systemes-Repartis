@@ -24,7 +24,7 @@ func main() {
 	conn, err := amqp091.Dial(amqpURL)
 	failOnError(err, "Failed to connect to RabbitMQ")
 	defer conn.Close() // Close the connection when the program ends
-
+	
 	// Open a channel
 	ch, err := conn.Channel()
 	failOnError(err, "Failed to open a channel")

@@ -4,9 +4,11 @@ package main
 import (
 	"TP2/models"
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"github.com/gin-gonic/gin"
 	_ "github.com/go-sql-driver/mysql"
+	amqp "github.com/rabbitmq/amqp091-go"
 	"log"
 	"net/http"
 )
@@ -14,6 +16,10 @@ import (
 type ProductSale models.ProductSale
 
 func main() {
+	setupRabbitMQ()
+	defer rabbitConn.Close()
+	defer rabbitChannel.Close()
+
 	r := gin.Default()
 
 	r.POST("/bo1", func(c *gin.Context) { InsertData(c, "bo1", "3306") })
@@ -26,6 +32,69 @@ func main() {
 	if err := r.Run(":8080"); err != nil {
 		log.Fatalf("Failed to start server: %v", err)
 	}
+}
+
+var rabbitConn *amqp.Connection
+var rabbitChannel *amqp.Channel
+
+const (
+	queueName   = "product_sales_task_queue"
+	rabbitMQURL = "amqp://guest:guest@localhost:5672/"
+)
+
+func setupRabbitMQ() {
+	var err error
+
+	rabbitConn, err = amqp.Dial(rabbitMQURL)
+	if err != nil {
+		log.Fatalf("Failed to connect to RabbitMQ: %v", err)
+	}
+
+	rabbitChannel, err = rabbitConn.Channel()
+	if err != nil {
+		log.Fatalf("Failed to open a channel: %v", err)
+	}
+
+	_, err = rabbitChannel.QueueDeclare(
+		queueName,
+		true,
+		false,
+		false,
+		false,
+		nil,
+	)
+	if err != nil {
+		log.Fatalf("Failed to declare a queue: %v", err)
+	}
+
+	log.Println("RabbitMQ setup completed successfully")
+}
+
+func publishMessage(sale ProductSale, source string) error {
+	sale.Source = source
+
+	body, err := json.Marshal(sale)
+	if err != nil {
+		return fmt.Errorf("error marshalling sale: %v", err)
+	}
+
+	err = rabbitChannel.Publish(
+		"",
+		queueName,
+		false,
+		false,
+		amqp.Publishing{
+			DeliveryMode: amqp.Persistent,
+			ContentType:  "application/json",
+			Body:         body,
+		})
+
+	if err != nil {
+		return fmt.Errorf("failed to publish message: %v", err)
+	}
+
+	log.Printf("Message published to queue: %s", queueName)
+	return nil
 }
 
 func connectDB(dbName, port string) (*sql.DB, error) {
@@ -63,6 +132,11 @@ func InsertData(c *gin.Context, dbName, port string) {
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to insert data"})
 		return
+	}
+
+	sale.Source = dbName
+	if err = publishMessage(sale, dbName); err != nil {
+		log.Printf("Warning: Failed to publish to RabbitMQ: %v", err)
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Data inserted successfully"})

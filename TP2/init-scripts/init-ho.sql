@@ -1,11 +1,14 @@
--- TP2/init-scripts/init-ho.sql
 CREATE DATABASE IF NOT EXISTS ho;
 USE ho;
 
-CREATE TABLE IF NOT EXISTS data (
+CREATE TABLE ProductSales (
   id INT AUTO_INCREMENT PRIMARY KEY,
-  source VARCHAR(10) NOT NULL,
-  name VARCHAR(255) NOT NULL,
-  value VARCHAR(255) NOT NULL,
-  timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  sale_date DATE,
+  region VARCHAR(100),
+  product VARCHAR(100),
+  qty INT,
+  cost DECIMAL(10,2),
+  amt DECIMAL(10,2),
+  tax DECIMAL(10,2),
+  total DECIMAL(10,2)
 );

@@ -1,10 +1,14 @@
--- TP2/init-scripts/init-bo2.sql
 CREATE DATABASE IF NOT EXISTS bo2;
 USE bo2;
 
-CREATE TABLE IF NOT EXISTS data (
+CREATE TABLE ProductSales (
   id INT AUTO_INCREMENT PRIMARY KEY,
-  name VARCHAR(255) NOT NULL,
-  value VARCHAR(255) NOT NULL,
-  timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  sale_date DATE,
+  region VARCHAR(100),
+  product VARCHAR(100),
+  qty INT,
+  cost DECIMAL(10,2),
+  amt DECIMAL(10,2),
+  tax DECIMAL(10,2),
+  total DECIMAL(10,2)
 );

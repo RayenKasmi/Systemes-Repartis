@@ -8,7 +8,7 @@ COPY go.mod go.sum ./
 RUN go mod download
 
 # Copy source code
-COPY producer.go .
+COPY ./producer/producer.go ./
  
 # Build the producer binary
 RUN go build -o producer .

@@ -40,7 +40,7 @@ func main() {
 	)
 	failOnError(err, "Failed to declare a queue")
 
-	// Consume messages from the queue
+	// set up a go channel to receive messages
 	msgs, err := ch.Consume(
 		q.Name, // queue
 		"",     // consumer tag

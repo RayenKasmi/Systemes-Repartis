@@ -1,4 +1,4 @@
-module producer
+module TP1
 
 go 1.24.0
 

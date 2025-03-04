@@ -1,5 +1,4 @@
-module producer
-
+module TP1.2
 go 1.24.0
 
 require (

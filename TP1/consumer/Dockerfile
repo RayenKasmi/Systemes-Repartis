@@ -8,7 +8,7 @@ COPY go.mod go.sum ./
 RUN go mod download
 
 # Copy the consumer code
-COPY consumer.go .
+COPY ./consumer/consumer.go ./
 
 # Build the consumer binary
 RUN go build -o consumer .

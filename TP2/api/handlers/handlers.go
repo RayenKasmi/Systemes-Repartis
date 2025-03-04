@@ -1,21 +1,22 @@
 package handlers
 
 import (
-	"TP2/api/config"
 	"TP2/api/database"
 	"TP2/models"
 	"encoding/json"
 	"fmt"
-	"github.com/gin-gonic/gin"
-	amqp "github.com/rabbitmq/amqp091-go"
 	"log"
 	"net/http"
+	"os"
+
+	"github.com/gin-gonic/gin"
+	amqp "github.com/rabbitmq/amqp091-go"
 )
 
 type ProductSale models.ProductSale
 
-func InsertData(c *gin.Context, dbName, port string, rabbitChannel *amqp.Channel) {
-	db, err := database.ConnectDB(dbName, port)
+func InsertData(c *gin.Context, dbName,dbService string ,port string, rabbitChannel *amqp.Channel) {
+	db, err := database.ConnectDB(dbName,dbService, port)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err})
 		return
@@ -43,8 +44,8 @@ func InsertData(c *gin.Context, dbName, port string, rabbitChannel *amqp.Channel
 	c.JSON(http.StatusOK, gin.H{"message": "Data inserted successfully"})
 }
 
-func GetData(c *gin.Context, dbName, port string) {
-	db, err := database.ConnectDB(dbName, port)
+func GetData(c *gin.Context, dbName,dbService string, port string) {
+	db, err := database.ConnectDB(dbName,dbService, port)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to connect to database"})
 		return
@@ -81,7 +82,7 @@ func publishMessage(sale ProductSale, source string, rabbitChannel *amqp.Channel
 
 	err = rabbitChannel.Publish(
 		"",
-		config.QueueName,
+		os.Getenv("QUEUE_NAME"),
 		false,
 		false,
 		amqp.Publishing{

@@ -1,0 +1,10 @@
+{
+  "sale_date": "2025-03-03T00:00:00Z",
+  "region": "region",
+  "product": "product",
+  "qty": 5,
+  "cost": 100.50,
+  "amt": 502.50,
+  "tax": 40.20,
+  "total": 542.70
+}

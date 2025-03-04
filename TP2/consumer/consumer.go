@@ -6,19 +6,20 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	_ "github.com/go-sql-driver/mysql"
-	amqp "github.com/rabbitmq/amqp091-go"
 	"log"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
+
+	_ "github.com/go-sql-driver/mysql"
+	amqp "github.com/rabbitmq/amqp091-go"
 )
 
-const (
-	queueName     = "product_sales_task_queue"
-	rabbitMQURL   = "amqp://guest:guest@localhost:5672/"
-	hoDatabaseDSN = "user:password@tcp(localhost:3308)/ho?parseTime=true"
+var (
+	queueName     string
+	rabbitMQURL   string
+	hoDatabaseDSN string
 )
 
 type ProductSale models.ProductSale
@@ -27,6 +28,10 @@ func main() {
 	log.SetOutput(os.Stdout)
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
 	log.Println("Starting HO database consumer...")
+
+	queueName = os.Getenv("QUEUE_NAME")
+	rabbitMQURL = os.Getenv("RABBITMQ_URL")
+	hoDatabaseDSN = os.Getenv("HO_DB_DSN")
 
 	conn, err := amqp.Dial(rabbitMQURL)
 	if err != nil {
@@ -91,7 +96,7 @@ func main() {
 			var sale ProductSale
 			if err := json.Unmarshal(msg.Body, &sale); err != nil {
 				log.Printf("Error unmarshalling message: %v", err)
-				msg.Nack(false, false)
+				msg.Nack(false, false) //rejects message with no requeue
 				continue
 			}
 
@@ -99,7 +104,7 @@ func main() {
 			if err != nil {
 				log.Printf("Error inserting into HO: %v. Requeuing message.", err)
 				time.Sleep(2 * time.Second)
-				msg.Nack(false, true)
+				msg.Nack(false, true) //rejects message with requeue
 				continue
 			}
 
@@ -133,6 +138,7 @@ func connectHODB() (*sql.DB, error) {
 func insertIntoHO(sale ProductSale) error {
 	db, err := connectHODB()
 	if err != nil {
+		log.Fatalf("Failed to connect to HO database: %v", err)
 		return fmt.Errorf("failed to connect to HO database: %v", err)
 	}
 	defer db.Close()
@@ -140,9 +146,10 @@ func insertIntoHO(sale ProductSale) error {
 	query := "INSERT INTO ProductSales (sale_date, region, product, qty, cost, amt, tax, total) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
 	_, err = db.Exec(query, sale.SaleDate, sale.Region, sale.Product, sale.Qty, sale.Cost, sale.Amt, sale.Tax, sale.Total)
 	if err != nil {
-		fmt.Errorf("failed to insert data into HO: %v", err)
+		log.Printf("Failed to insert data into HO: %v", err)
+		return fmt.Errorf("failed to insert data into HO: %v", err)
 	}
 
-	log.Printf("Record from %s inserted into HO database successfully", sale.Source)
+	log.Println("Record from %s inserted into HO database successfully", sale.Source)
 	return nil
 }

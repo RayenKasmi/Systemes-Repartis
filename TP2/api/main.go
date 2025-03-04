@@ -1,12 +1,13 @@
 package main
 
 import (
-	"TP2/api/config"
 	"TP2/api/handlers"
+	"log"
+	"os"
+
 	"github.com/gin-gonic/gin"
 	_ "github.com/go-sql-driver/mysql"
 	amqp "github.com/rabbitmq/amqp091-go"
-	"log"
 )
 
 func main() {
@@ -16,18 +17,18 @@ func main() {
 
 	r := gin.Default()
 
-	if err := r.SetTrustedProxies([]string{"127.0.0.1"}); err != nil {
+	if err := r.SetTrustedProxies([]string{os.Getenv("API_IP")}); err != nil {
 		log.Fatalf("Failed to set trusted proxies: %v", err)
 	}
 
-	r.POST("/bo1", func(c *gin.Context) { handlers.InsertData(c, "bo1", "3306", rabbitChannel) })
-	r.POST("/bo2", func(c *gin.Context) { handlers.InsertData(c, "bo2", "3307", rabbitChannel) })
-	r.GET("/bo1", func(c *gin.Context) { handlers.GetData(c, "bo1", "3306") })
-	r.GET("/bo2", func(c *gin.Context) { handlers.GetData(c, "bo2", "3307") })
-	r.GET("/ho", func(c *gin.Context) { handlers.GetData(c, "ho", "3308") })
+	r.POST("/bo1", func(c *gin.Context) { handlers.InsertData(c,os.Getenv("BO1_DB_NAME"), os.Getenv("BO1_DB_HOST"), os.Getenv("BO1_PORT"), rabbitChannel) })
+	r.POST("/bo2", func(c *gin.Context) { handlers.InsertData(c,os.Getenv("BO2_DB_NAME"), os.Getenv("BO2_DB_HOST"), os.Getenv("BO2_PORT"), rabbitChannel) })
+	r.GET("/bo1", func(c *gin.Context) { handlers.GetData(c,os.Getenv("BO1_DB_NAME"), os.Getenv("BO1_DB_HOST"), os.Getenv("BO1_PORT")) })
+	r.GET("/bo2", func(c *gin.Context) { handlers.GetData(c,os.Getenv("BO2_DB_NAME"), os.Getenv("BO2_DB_HOST"), os.Getenv("BO2_PORT")) })
+	r.GET("/ho", func(c *gin.Context) { handlers.GetData(c, os.Getenv("HO_DB_NAME"),os.Getenv("HO_DB_HOST"), os.Getenv("HO_PORT")) })
 
-	log.Println("Starting API server on :8080")
-	if err := r.Run(":8080"); err != nil {
+	log.Println("Starting API server on :" + os.Getenv("API_PORT"))
+	if err := r.Run(":" + os.Getenv("API_PORT")); err != nil {
 		log.Fatalf("Failed to start server: %v", err)
 	}
 }
@@ -38,7 +39,7 @@ var rabbitChannel *amqp.Channel
 func setupRabbitMQ() {
 	var err error
 
-	rabbitConn, err = amqp.Dial(config.RabbitMQURL)
+	rabbitConn, err = amqp.Dial(os.Getenv("RABBITMQ_URL"))
 	if err != nil {
 		log.Fatalf("Failed to connect to RabbitMQ: %v", err)
 	}
@@ -49,7 +50,7 @@ func setupRabbitMQ() {
 	}
 
 	_, err = rabbitChannel.QueueDeclare(
-		config.QueueName,
+		os.Getenv("QUEUE_NAME"),
 		true,
 		false,
 		false,

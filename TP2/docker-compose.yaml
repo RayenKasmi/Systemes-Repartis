@@ -2,7 +2,7 @@ version: '3'
 
 services:
   rabbitmq:
-    image: rabbitmq:3-management
+    image: rabbitmq:3-management-alpine
     ports:
       - "5672:5672"
       - "15672:15672"
@@ -25,6 +25,7 @@ services:
     ports:
       - "3306:3306"
     volumes:
+      - mysql_bo1_data:/var/lib/mysql 
       - ./init-scripts/init-bo1.sql:/docker-entrypoint-initdb.d/init.sql
 
   mysql-bo2:
@@ -37,6 +38,7 @@ services:
     ports:
       - "3307:3306"
     volumes:
+      - mysql_bo2_data:/var/lib/mysql
       - ./init-scripts/init-bo2.sql:/docker-entrypoint-initdb.d/init.sql
 
   mysql-ho:
@@ -49,28 +51,64 @@ services:
     ports:
       - "3308:3306"
     volumes:
+      - mysql_ho_data:/var/lib/mysql
       - ./init-scripts/init-ho.sql:/docker-entrypoint-initdb.d/init.sql
+  api-service:
+    build:
+      context: .
+      dockerfile: ./api/Dockerfile
+    ports:
+      - "8081:8081"
+    depends_on:
+      - mysql-bo1
+      - mysql-bo2
+      - mysql-ho
+      - rabbitmq
+    environment:
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USER: guest
+      RABBITMQ_PASS: guest
+      BO1_DB_HOST: mysql-bo1
+      BO2_DB_HOST: mysql-bo2
+      HO_DB_HOST: mysql-ho
+      DB_USER: user
+      DB_PASS: password
+      API_IP: 127.0.0.1
+      API_PORT: 8081
+      BO1_PORT: 3306
+      BO2_PORT: 3306
+      HO_PORT: 3306
+      QUEUE_NAME: product_sales_task_queue
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672
+      BO1_DB_NAME: bo1
+      BO2_DB_NAME: bo2
+      HO_DB_NAME: ho
+  ho-consumer:
+    build:
+      context: .
+      dockerfile: ./consumer/Dockerfile
+    depends_on:
+      - mysql-ho
+      - rabbitmq
+    environment:
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USER: guest
+      RABBITMQ_PASS: guest
+      DB_HOST: mysql-ho
+      DB_USER: user
+      DB_PASS: password
+      DB_NAME: ho
+      QUEUE_NAME: product_sales_task_queue
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672
+      HO_DB_DSN: user:password@tcp(mysql-ho:3306)/ho?parseTime=true
 
-#  api-service:
-#    build:
-#      context: ./api
-#    ports:
-#      - "8080:8080"
-#    depends_on:
-#      - rabbitmq
-#      - mysql-bo1
-#      - mysql-bo2
-#      - mysql-ho
-#    environment:
-#      RABBITMQ_HOST: rabbitmq
-#      RABBITMQ_PORT: 5672
-#      RABBITMQ_USER: guest
-#      RABBITMQ_PASS: guest
-#      BO1_DB_HOST: mysql-bo1
-#      BO2_DB_HOST: mysql-bo2
-#      HO_DB_HOST: mysql-ho
-#      DB_USER: user
-#      DB_PASS: password
+
+volumes: 
+  mysql_bo1_data:
+  mysql_bo2_data:
+  mysql_ho_data:
 #
 #  bo1-consumer:
 #    build:
@@ -104,18 +142,3 @@ services:
 #      DB_PASS: password
 #      DB_NAME: bo2
 #
-#  ho-consumer:
-#    build:
-#      context: ./consumers/ho
-#    depends_on:
-#      - rabbitmq
-#      - mysql-ho
-#    environment:
-#      RABBITMQ_HOST: rabbitmq
-#      RABBITMQ_PORT: 5672
-#      RABBITMQ_USER: guest
-#      RABBITMQ_PASS: guest
-#      DB_HOST: mysql-ho
-#      DB_USER: user
-#      DB_PASS: password
-#      DB_NAME: ho
